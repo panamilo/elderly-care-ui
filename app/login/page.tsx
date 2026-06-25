@@ -23,7 +23,7 @@ export default function LoginPage() {
     if (login(username, password)) {
       router.push("/dashboard");
     } else {
-      setError("Λανθασμένα στοιχεία σύνδεσης.");
+      setError("Invalid login credentials.");
       setLoading(false);
     }
   }
@@ -53,20 +53,20 @@ export default function LoginPage() {
             Elderly Care Monitor
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Σύστημα παρακολούθησης ανεξάρτητης διαβίωσης
+            Independent living monitoring system
           </p>
         </div>
 
         {/* Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h2 className="text-sm font-semibold text-slate-900 mb-5">
-            Σύνδεση στο σύστημα
+            Sign in to the system
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
-                Όνομα χρήστη
+                Username
               </label>
               <input
                 type="text"
@@ -81,7 +81,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
-                Κωδικός πρόσβασης
+                Password
               </label>
               <input
                 type="password"
@@ -124,10 +124,10 @@ export default function LoginPage() {
                   <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  Σύνδεση…
+                  Signing in…
                 </span>
               ) : (
-                "Σύνδεση"
+                "Sign in"
               )}
             </button>
           </form>

@@ -3,16 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import SensorCard from "@/components/SensorCard";
 import AlertBanner from "@/components/AlertBanner";
-import type { SensorReading, AuditorAlert } from "@/lib/thingsboard";
-
-const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID ?? "DEMO";
+import { getSocket } from "@/lib/socket";
+import type { SensorReading, AuditorAlert } from "@/lib/connector";
 
 const ROOMS = [
-  { id: "kitchen",     label: "Κουζίνα" },
-  { id: "living_room", label: "Σαλόνι" },
-  { id: "bedroom",     label: "Υπνοδωμάτιο" },
-  { id: "bathroom",    label: "Μπάνιο" },
-  { id: "entrance",    label: "Είσοδος" },
+  { id: "kitchen",     label: "Kitchen" },
+  { id: "living_room", label: "Living Room" },
+  { id: "bedroom",     label: "Bedroom" },
+  { id: "bathroom",    label: "Bathroom" },
+  { id: "entrance",    label: "Entrance" },
 ];
 
 function RefreshIcon() {
@@ -45,27 +44,47 @@ export default function OverviewPage() {
   const fetchData = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     try {
-      const [sRes, aRes] = await Promise.all([
-        fetch(`/api/sensors?deviceId=${DEVICE_ID}`),
-        fetch(`/api/alerts?deviceId=${DEVICE_ID}`),
-      ]);
-      if (!sRes.ok || !aRes.ok) throw new Error("Σφάλμα ανάκτησης δεδομένων");
-      setSensors(await sRes.json());
-      setAlerts(await aRes.json());
+      const res = await fetch("/api/data");
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error ?? "Error fetching data");
+      setSensors(body.sensors as SensorReading[]);
+      setAlerts(body.alerts as AuditorAlert[]);
       setLastUpdate(new Date());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Άγνωστο σφάλμα");
+      setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  // Dismiss an alarm via the connector, then drop it locally (optimistic).
+  const handleDismiss = useCallback(async (alertId: string) => {
+    const res = await fetch(`/api/alarms/${encodeURIComponent(alertId)}/dismiss`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      setError("Failed to dismiss alert");
+      return;
+    }
+    setAlerts((prev) => prev.filter((a) => a.alertId !== alertId));
+  }, []);
+
   useEffect(() => {
     fetchData();
     const id = setInterval(fetchData, 30_000);
-    return () => clearInterval(id);
+
+    // The connector pushes an "alarm" event whenever the hourly audit raises
+    // one — refetch so new alarms appear without waiting for the next poll.
+    const socket = getSocket();
+    const onAlarm = () => fetchData();
+    socket.on("alarm", onAlarm);
+
+    return () => {
+      clearInterval(id);
+      socket.off("alarm", onAlarm);
+    };
   }, [fetchData]);
 
   const activeAlerts = alerts.filter((a) => a.active);
@@ -88,11 +107,11 @@ export default function OverviewPage() {
       {/* ── Page header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold text-slate-900 leading-tight">Επισκόπηση</h1>
+          <h1 className="text-lg font-bold text-slate-900 leading-tight">Overview</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {lastUpdate
-              ? `Τελευταία ενημέρωση: ${lastUpdate.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
-              : loading ? "Φόρτωση δεδομένων…" : "—"}
+              ? `Last updated: ${lastUpdate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+              : loading ? "Loading data…" : "—"}
           </p>
         </div>
         <button
@@ -101,7 +120,7 @@ export default function OverviewPage() {
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 transition-colors"
         >
           <span className={refreshing ? "animate-spin" : ""}><RefreshIcon /></span>
-          Ανανέωση
+          Refresh
         </button>
       </div>
 
@@ -115,25 +134,15 @@ export default function OverviewPage() {
       {/* ── Summary stats ── */}
       {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Αισθητήρες" value={sensors.length} sub="Σύνολο" accent="#2563EB" />
-          <StatCard label="Ενεργοί" value={activeSensors.length} sub="Εντοπίστηκε δραστηριότητα" accent="#10B981" />
+          <StatCard label="Sensors" value={sensors.length} sub="Total" accent="#2563EB" />
+          <StatCard label="Active" value={activeSensors.length} sub="Activity detected" accent="#10B981" />
           <StatCard
-            label="Ειδοποιήσεις"
+            label="Alerts"
             value={activeAlerts.length}
-            sub={activeAlerts.length === 0 ? "Κανένα πρόβλημα" : "Απαιτείται προσοχή"}
+            sub={activeAlerts.length === 0 ? "No issues" : "Attention required"}
             accent={activeAlerts.length > 0 ? "#EF4444" : "#10B981"}
           />
-          <StatCard label="Safety Auditor" value="Αυτόματος" sub="Κάθε 60 λεπτά" accent="#8B5CF6" />
-        </div>
-      )}
-
-      {/* ── Demo notice ── */}
-      {!process.env.NEXT_PUBLIC_DEVICE_ID && !loading && (
-        <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
-          <p className="text-xs text-blue-700 font-medium">
-            Λειτουργία προσομοίωσης — ThingsBoard δεν έχει συνδεθεί. Εμφανίζονται δεδομένα demo.
-          </p>
+          <StatCard label="Safety Auditor" value="Automatic" sub="Every 60 minutes" accent="#8B5CF6" />
         </div>
       )}
 
@@ -141,9 +150,9 @@ export default function OverviewPage() {
       {activeAlerts.length > 0 && (
         <section>
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-            Ενεργές ειδοποιήσεις
+            Active alerts
           </h2>
-          <AlertBanner alerts={alerts} />
+          <AlertBanner alerts={alerts} onDismiss={handleDismiss} />
         </section>
       )}
 
@@ -165,7 +174,7 @@ export default function OverviewPage() {
                   <h2 className="text-sm font-semibold text-slate-700">{room.label}</h2>
                   <div className="flex-1 h-px bg-slate-200" />
                   <span className="text-[11px] text-slate-400 font-mono">
-                    {roomSensors.length} αισθ.
+                    {roomSensors.length} sensors
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -184,7 +193,7 @@ export default function OverviewPage() {
             return (
               <section>
                 <div className="flex items-center gap-3 mb-3">
-                  <h2 className="text-sm font-semibold text-slate-700">Άλλοι αισθητήρες</h2>
+                  <h2 className="text-sm font-semibold text-slate-700">Other sensors</h2>
                   <div className="flex-1 h-px bg-slate-200" />
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

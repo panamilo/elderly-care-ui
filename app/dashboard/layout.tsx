@@ -54,7 +54,7 @@ export default function DashboardLayout({
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-1.5 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-            aria-label="Μενού"
+            aria-label="Menu"
           >
             <MenuIcon />
           </button>

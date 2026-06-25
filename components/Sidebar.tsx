@@ -64,8 +64,8 @@ function IconLogout() {
 }
 
 const NAV = [
-  { href: "/dashboard", label: "Επισκόπηση", Icon: IconOverview },
-  { href: "/dashboard/chat", label: "AI Βοηθός", Icon: IconChat },
+  { href: "/dashboard", label: "Overview", Icon: IconOverview },
+  { href: "/dashboard/chat", label: "AI Assistant", Icon: IconChat },
 ];
 
 interface SidebarProps {
@@ -137,7 +137,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-0.5">
           <p className="px-3 pb-2 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
-            Πλοήγηση
+            Navigation
           </p>
           {NAV.map(({ href, label, Icon }) => {
             const active = isActive(href);
@@ -172,7 +172,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 admin
               </p>
               <p className="text-slate-500 text-[10px] leading-tight">
-                Φροντιστής
+                Caregiver
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800/60 hover:text-slate-300 transition-colors"
           >
             <IconLogout />
-            Αποσύνδεση
+            Sign out
           </button>
         </div>
       </aside>

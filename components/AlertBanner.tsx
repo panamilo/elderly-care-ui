@@ -1,6 +1,7 @@
 "use client";
 
-import type { AuditorAlert } from "@/lib/thingsboard";
+import { useState } from "react";
+import type { AuditorAlert } from "@/lib/connector";
 
 const SEV_CFG = {
   LOW: {
@@ -34,9 +35,9 @@ const SEV_CFG = {
 } as const;
 
 const TYPE_LABEL: Record<string, string> = {
-  ACUTE_HAZARD:   "Άμεσος κίνδυνος",
-  SUBTLE_DECLINE: "Σταδιακή έκπτωση",
-  UNKNOWN:        "Άγνωστος τύπος",
+  ACUTE_HAZARD:   "Acute hazard",
+  SUBTLE_DECLINE: "Gradual decline",
+  UNKNOWN:        "Unknown type",
 };
 
 function AlertIcon() {
@@ -60,24 +61,65 @@ function AlertIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 function relativeTime(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60)   return `${s}δ πριν`;
-  if (s < 3600) return `${Math.floor(s / 60)}λ πριν`;
-  return new Date(ts).toLocaleTimeString("el-GR", {
+  if (s < 60)   return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return new Date(ts).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-export default function AlertBanner({ alerts }: { alerts: AuditorAlert[] }) {
+interface AlertBannerProps {
+  alerts: AuditorAlert[];
+  /** Dismiss an alarm (clears it on the connector). */
+  onDismiss?: (alertId: string) => void | Promise<void>;
+}
+
+export default function AlertBanner({ alerts, onDismiss }: AlertBannerProps) {
+  const [dismissing, setDismissing] = useState<Set<string>>(new Set());
   const active = alerts.filter((a) => a.active);
   if (active.length === 0) return null;
+
+  async function handleDismiss(alertId: string) {
+    if (!onDismiss || dismissing.has(alertId)) return;
+    setDismissing((prev) => new Set(prev).add(alertId));
+    try {
+      await onDismiss(alertId);
+    } finally {
+      setDismissing((prev) => {
+        const next = new Set(prev);
+        next.delete(alertId);
+        return next;
+      });
+    }
+  }
 
   return (
     <div className="space-y-2">
       {active.map((alert) => {
         const c = SEV_CFG[alert.severity] ?? SEV_CFG.MEDIUM;
+        const isDismissing = dismissing.has(alert.alertId);
         return (
           <div
             key={alert.alertId}
@@ -106,6 +148,24 @@ export default function AlertBanner({ alerts }: { alerts: AuditorAlert[] }) {
                 Safety Auditor · {relativeTime(alert.ts)}
               </p>
             </div>
+
+            {onDismiss && (
+              <button
+                onClick={() => handleDismiss(alert.alertId)}
+                disabled={isDismissing}
+                aria-label="Dismiss alert"
+                title="Dismiss"
+                className={`shrink-0 -mr-1 -mt-0.5 p-1.5 rounded-lg transition-colors hover:bg-black/5 disabled:opacity-40 ${c.muted}`}
+              >
+                {isDismissing ? (
+                  <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                ) : (
+                  <CloseIcon />
+                )}
+              </button>
+            )}
           </div>
         );
       })}

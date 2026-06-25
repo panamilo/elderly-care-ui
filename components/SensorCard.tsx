@@ -1,24 +1,24 @@
 "use client";
 
-import type { SensorReading } from "@/lib/thingsboard";
+import type { SensorReading } from "@/lib/connector";
 
 /* ── Type metadata ─────────────────────────────────────── */
 
 const TYPE_CFG: Record<string, { label: string; accent: string }> = {
-  motion:     { label: "ΚΙΝΗΣΗ",     accent: "#3B82F6" },
-  power:      { label: "ΙΣΧΥΣ",      accent: "#F59E0B" },
-  contact:    { label: "ΕΠΑΦΗ",      accent: "#10B981" },
-  water_flow: { label: "ΡΟΗ ΝΕΡΟΥ", accent: "#06B6D4" },
-  pressure:   { label: "ΠΙΕΣΗ",      accent: "#8B5CF6" },
-  vibration:  { label: "ΔΟΝΗΣΗ",     accent: "#EC4899" },
+  motion:     { label: "MOTION",     accent: "#3B82F6" },
+  power:      { label: "POWER",      accent: "#F59E0B" },
+  contact:    { label: "CONTACT",    accent: "#10B981" },
+  water_flow: { label: "WATER FLOW", accent: "#06B6D4" },
+  pressure:   { label: "PRESSURE",   accent: "#8B5CF6" },
+  vibration:  { label: "VIBRATION",  accent: "#EC4899" },
 };
 
 const ROOM_LABELS: Record<string, string> = {
-  kitchen:     "Κουζίνα",
-  living_room: "Σαλόνι",
-  bedroom:     "Υπνοδωμάτιο",
-  bathroom:    "Μπάνιο",
-  entrance:    "Είσοδος",
+  kitchen:     "Kitchen",
+  living_room: "Living Room",
+  bedroom:     "Bedroom",
+  bathroom:    "Bathroom",
+  entrance:    "Entrance",
 };
 
 /* ── Status resolution ─────────────────────────────────── */
@@ -34,26 +34,26 @@ function resolveStatus(s: SensorReading): Status {
   switch (s.sensor_type) {
     case "motion":
       return v === 1
-        ? { text: "Ανιχνεύθηκε κίνηση", dot: "green", live: true }
-        : { text: "Ηρεμία", dot: "gray", live: false };
+        ? { text: "Motion detected", dot: "green", live: true }
+        : { text: "No motion", dot: "gray", live: false };
     case "power":
       return v > 10
-        ? { text: `${v} W — Ενεργό`, dot: "amber", live: true }
-        : { text: "Εκτός λειτουργίας", dot: "gray", live: false };
+        ? { text: `${v} W — Active`, dot: "amber", live: true }
+        : { text: "Off", dot: "gray", live: false };
     case "contact":
       return v === 1
-        ? { text: "Ανοιχτό", dot: "red", live: true }
-        : { text: "Κλειστό", dot: "green", live: false };
+        ? { text: "Open", dot: "red", live: true }
+        : { text: "Closed", dot: "green", live: false };
     case "water_flow":
       return v > 0
-        ? { text: `${v} L/min — Σε ροή`, dot: "blue", live: true }
-        : { text: "Καμία ροή", dot: "gray", live: false };
+        ? { text: `${v} L/min — Flowing`, dot: "blue", live: true }
+        : { text: "No flow", dot: "gray", live: false };
     case "pressure":
       return v === 1
-        ? { text: "Κατειλημμένο", dot: "violet", live: true }
-        : { text: "Κενό", dot: "gray", live: false };
+        ? { text: "Occupied", dot: "violet", live: true }
+        : { text: "Empty", dot: "gray", live: false };
     case "vibration":
-      return { text: "Ανιχνεύθηκε γεγονός", dot: "violet", live: false };
+      return { text: "Event detected", dot: "violet", live: false };
     default:
       return { text: String(s.value), dot: "gray", live: false };
   }
@@ -81,9 +81,9 @@ const TEXT_CLASSES: Record<Status["dot"], string> = {
 
 function relativeTime(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60)   return `${s}δ`;
-  if (s < 3600) return `${Math.floor(s / 60)}λ`;
-  return `${Math.floor(s / 3600)}ω`;
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  return `${Math.floor(s / 3600)}h`;
 }
 
 function batteryClass(pct: number): string {
@@ -138,7 +138,7 @@ export default function SensorCard({ sensor }: { sensor: SensorReading }) {
         <div className="flex items-center justify-between pt-1 border-t border-slate-100">
           <span className="text-[11px] text-slate-400">{room}</span>
           <span className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span>{relativeTime(sensor.ts)} πριν</span>
+            <span>{relativeTime(sensor.ts)} ago</span>
             {sensor.battery_pct !== null && sensor.battery_pct !== undefined && (
               <span className={batteryClass(sensor.battery_pct)}>
                 {sensor.battery_pct}%
